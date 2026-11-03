@@ -107,6 +107,7 @@ class LaunchersPage : UserControl
     {
         p = (p ?? "").Trim().Trim('"');
         if (p == "") return;
+        p = LauncherBuilder.KeepShortcut(p);   // our own copy, so deleting the Desktop shortcut can't break it
         foreach (ListViewItem it in _list.Items) if ((string)it.Tag == p) return;
         var name = Icons.IsUrl(p) ? p : Path.GetFileNameWithoutExtension(p.TrimEnd('\\'));
         if (string.IsNullOrEmpty(name)) name = p;

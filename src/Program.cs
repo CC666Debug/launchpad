@@ -28,6 +28,7 @@ static class Program
 
         ApplicationConfiguration.Initialize();
         Theme.Load();
+        if (args.Contains("--repair-launchers")) { File.WriteAllText(Path.Combine(Paths.Root, "repair.txt"), LauncherBuilder.RepairAll()); return; }
         if (args.Contains("--selftest")) { SelfTest(args.Contains("--merge"), args); return; }
         bool hidden = args.Contains("--tray");
         var form = new MainForm(hidden);

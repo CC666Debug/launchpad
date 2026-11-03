@@ -5,6 +5,7 @@ static class Paths
     public static readonly string Root = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "LaunchPad");
     public static readonly string Launchers = Path.Combine(Root, "Launchers");
     public static readonly string Icons = Path.Combine(Root, "Icons");
+    public static readonly string Shortcuts = Path.Combine(Root, "Shortcuts");   // LaunchPad's own copies of shortcuts you drop in
     public static readonly string Build = Path.Combine(Root, "build");
     public static readonly string HotkeysFile = Path.Combine(Root, "hotkeys.json");
     public static readonly string SettingsFile = Path.Combine(Root, "settings.json");

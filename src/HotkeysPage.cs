@@ -51,7 +51,7 @@ class HotkeysPage : UserControl
         _list.DragDrop += (s, e) =>
         {
             // a file, shortcut, folder or web link dropped in: make a hotkey that opens it (like Keyboard Launchpad did)
-            if (e.Data.GetDataPresent(DataFormats.FileDrop)) { var f = ((string[])e.Data.GetData(DataFormats.FileDrop))[0]; AddWith(new HotAction { Kind = ActionKind.Open, Target = f }, Path.GetFileNameWithoutExtension(f.TrimEnd('\\'))); return; }
+            if (e.Data.GetDataPresent(DataFormats.FileDrop)) { var f = ((string[])e.Data.GetData(DataFormats.FileDrop))[0]; AddWith(new HotAction { Kind = ActionKind.Open, Target = LauncherBuilder.KeepShortcut(f) }, Path.GetFileNameWithoutExtension(f.TrimEnd('\\'))); return; }
             if (e.Data.GetDataPresent(DataFormats.Text)) { var t = ((string)e.Data.GetData(DataFormats.Text)).Trim(); if (Icons.IsUrl(t)) AddWith(new HotAction { Kind = ActionKind.Open, Target = t }, new Uri(t).Host); return; }
             if (e.Data.GetData(typeof(DragIds)) is not DragIds d) return;
             var p = _list.PointToClient(new Point(e.X, e.Y));

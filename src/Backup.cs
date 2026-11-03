@@ -20,6 +20,9 @@ static class Backup
                 var full = Path.Combine(Paths.Root, f);
                 if (File.Exists(full)) zip.CreateEntryFromFile(full, f);
             }
+            if (Directory.Exists(Paths.Shortcuts))
+                foreach (var f in Directory.GetFiles(Paths.Shortcuts))
+                    zip.CreateEntryFromFile(f, "Shortcuts/" + Path.GetFileName(f));
             if (Directory.Exists(Paths.Launchers))
                 foreach (var exe in Directory.GetFiles(Paths.Launchers, "*.exe"))
                     zip.CreateEntryFromFile(exe, "Launchers/" + Path.GetFileName(exe));
@@ -43,6 +46,7 @@ static class Backup
             if (e.FullName.EndsWith("/")) continue;
             string dest;
             if (e.FullName.StartsWith("Launchers/")) dest = Path.Combine(Paths.Launchers, Path.GetFileName(e.FullName));
+            else if (e.FullName.StartsWith("Shortcuts/")) dest = Path.Combine(Paths.Shortcuts, Path.GetFileName(e.FullName));
             else if (e.FullName.StartsWith("Desktop/")) dest = Path.Combine(Paths.Desktop, Path.GetFileName(e.FullName));
             else if (Files.Contains(e.FullName)) dest = Path.Combine(Paths.Root, e.FullName);
             else continue;
