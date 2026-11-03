@@ -1,0 +1,7 @@
+<Project>
+  <!-- keep build junk off the synced X: drive -->
+  <PropertyGroup>
+    <BaseOutputPath>$(LOCALAPPDATA)\LaunchPad\build\bin\</BaseOutputPath>
+    <BaseIntermediateOutputPath>$(LOCALAPPDATA)\LaunchPad\build\obj\</BaseIntermediateOutputPath>
+  </PropertyGroup>
+</Project>

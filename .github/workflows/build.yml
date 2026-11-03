@@ -1,0 +1,77 @@
+# Every push builds LaunchPad on Windows and puts it on the Releases page as "latest",
+# then refreshes the download page (GitHub Pages, from docs/).
+# Free on public repos; switch it off any time under the repo's Actions tab.
+name: Build LaunchPad
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:        # plus a "Run workflow" button
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+concurrency:
+  group: build
+  cancel-in-progress: true
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-dotnet@v6
+        with: { dotnet-version: '10.0.x' }
+      - name: Build
+        shell: pwsh
+        run: |
+          # small one: uses the free .NET 10 Desktop Runtime
+          dotnet publish src -c Release -o out/small
+          # standalone one: runs on any Windows 10/11 PC, nothing else needed
+          dotnet publish src -c Release -o out/standalone --self-contained true -p:EnableCompressionInSingleFile=true
+          New-Item -ItemType Directory files | Out-Null
+          Copy-Item out/small/LaunchPad.exe files/LaunchPad.exe
+          Copy-Item out/standalone/LaunchPad.exe files/LaunchPad-Standalone.exe
+          Get-ChildItem files | Format-Table Name, Length
+      - uses: actions/upload-artifact@v7
+        with: { name: windows, path: files/* }
+
+  release:
+    needs: windows
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
+        with: { name: windows, path: files }
+      - name: Put it on the Releases page
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VER=$(grep -oP '(?<=<Version>)[^<]+' src/LaunchPad.csproj)
+          ls -la files
+          gh release delete latest --yes --cleanup-tag || true
+          gh release create latest files/* --title "LaunchPad $VER" --notes "Built from $(git rev-parse --short HEAD).
+
+          - **LaunchPad.exe** — small. Needs the free [.NET 10 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/10.0) (x64).
+          - **LaunchPad-Standalone.exe** — bigger, but runs on any Windows 10/11 PC with nothing else installed.
+
+          Put it anywhere and double-click. Your hotkeys and launchers live in %LOCALAPPDATA%\\LaunchPad."
+
+  pages:
+    needs: release
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v7
+      - name: Version on the page
+        run: |
+          VER=$(grep -oP '(?<=<Version>)[^<]+' src/LaunchPad.csproj)
+          sed -i "s/{{VERSION}}/$VER/g" docs/index.html
+          cp LaunchPad.ico docs/LaunchPad.ico
+      - uses: actions/configure-pages@v6
+      - uses: actions/upload-pages-artifact@v5
+        with: { path: docs }
+      - id: deploy
+        uses: actions/deploy-pages@v5

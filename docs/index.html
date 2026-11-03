@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LaunchPad</title>
+<meta name="description" content="Free Windows tray app: system-wide hotkeys and one-click launchers that open many things at once.">
+<link rel="icon" href="LaunchPad.ico">
+<style>
+:root{--bg:#f6f4f8;--panel:#ffffff;--text:#1f1b24;--muted:#6b6474;--border:#e2dce8;--accent:#7a24c9;--accent2:#ff8a1f;--ok:#169447}
+@media (prefers-color-scheme:dark){:root{--bg:#141118;--panel:#1d1923;--text:#ece8f1;--muted:#a59db0;--border:#332c3b;--accent:#b65cff;--accent2:#ff9a3c;--ok:#3ee07a}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:16px/1.55 "Segoe UI",system-ui,sans-serif}
+.wrap{max-width:920px;margin:0 auto;padding:0 16px}
+header{padding:56px 0 28px;text-align:center}
+header img{width:96px;height:96px}
+h1{font-size:44px;margin:10px 0 6px;letter-spacing:-.5px}
+.tag{color:var(--muted);font-size:19px;margin:0 auto;max-width:620px}
+.ver{display:inline-block;margin-top:14px;padding:2px 10px;border:1px solid var(--border);border-radius:99px;color:var(--muted);font-size:13px}
+.dl{display:flex;gap:14px;justify-content:center;flex-wrap:wrap;margin:30px 0 10px}
+.btn{display:flex;flex-direction:column;align-items:center;gap:2px;min-width:250px;padding:14px 22px;border-radius:12px;text-decoration:none;font-weight:600;border:1px solid var(--border);background:var(--panel);color:var(--text)}
+.btn small{font-weight:400;color:var(--muted);font-size:13px}
+.btn.main{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn.main small{color:#f1e6ff}
+.btn:hover{filter:brightness(1.08)}
+.note{text-align:center;color:var(--muted);font-size:14px;margin:4px 0 0}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px;margin:44px 0}
+.card{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:18px 18px 14px}
+.card h3{margin:0 0 6px;font-size:17px}
+.card p,.card li{color:var(--muted);margin:0}
+.card ul{margin:0;padding-left:18px}
+.card .k{color:var(--accent);font-weight:700;margin-right:6px}
+h2{font-size:22px;margin:40px 0 10px}
+ol.steps{padding-left:20px;color:var(--muted)} ol.steps b{color:var(--text)}
+kbd{background:var(--panel);border:1px solid var(--border);border-bottom-width:2px;border-radius:5px;padding:0 6px;font:13px Consolas,monospace;color:var(--text)}
+footer{border-top:1px solid var(--border);margin-top:48px;padding:22px 0 40px;color:var(--muted);font-size:14px;text-align:center}
+a{color:var(--accent)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <img src="LaunchPad.ico" alt="">
+    <h1>LaunchPad</h1>
+    <p class="tag">Hotkeys that work anywhere in Windows, plus one-click launchers that open all your stuff at once. Free.</p>
+    <span class="ver">Version {{VERSION}} · Windows 10 / 11</span>
+    <div class="dl">
+      <a class="btn main" href="https://github.com/CC666Debug/launchpad/releases/latest/download/LaunchPad-Standalone.exe">Download LaunchPad<small>Standalone · nothing else needed</small></a>
+      <a class="btn" href="https://github.com/CC666Debug/launchpad/releases/latest/download/LaunchPad.exe">Small version<small>needs the free <span>.NET 10 Desktop Runtime</span></small></a>
+    </div>
+    <p class="note">New, unsigned app: if Windows says "Windows protected your PC", click <b>More info → Run anyway</b>.</p>
+  </header>
+
+  <div class="grid">
+    <div class="card"><h3><span class="k">⌨</span>Hotkeys anywhere</h3>
+      <p>Press a combo with Ctrl, Alt, Shift or Win from any program and it fires. Each hotkey can do several things in a row.</p></div>
+    <div class="card"><h3><span class="k">🚀</span>Launchers</h3>
+      <p>Drag icons, files, folders and web links in, save, and get one Desktop shortcut with your own icon that opens them all.</p></div>
+    <div class="card"><h3><span class="k">⚙</span>What a hotkey can do</h3>
+      <ul><li>Open programs, files, folders, websites</li><li>Paste saved text</li><li>Lock, sleep, show desktop, hidden files…</li><li>Music and volume keys</li><li>Mouse clicks and waits</li></ul></div>
+    <div class="card"><h3><span class="k">🗂</span>Stay organized</h3>
+      <p>Categories you can rename, drag to rearrange, search, and a printable cheat sheet of every hotkey.</p></div>
+    <div class="card"><h3><span class="k">🎨</span>Your colors</h3>
+      <p>Light or dark, five color themes and any accent. Tap the sun/moon; hold it for colors.</p></div>
+    <div class="card"><h3><span class="k">💾</span>Backups</h3>
+      <p>Export everything to one file and import it back. Brings in hotkeys from the old Stardock Keyboard Launchpad, too.</p></div>
+  </div>
+
+  <h2>Getting started</h2>
+  <ol class="steps">
+    <li><b>Download</b> and put <kbd>LaunchPad.exe</kbd> anywhere you like, then double-click it.</li>
+    <li><b>Hotkeys tab:</b> click Add, press your keys, pick what it should do.</li>
+    <li><b>Launchers tab:</b> drag things in, click Save.</li>
+    <li>Closing the window keeps it running in the tray. Turn on <b>Start with Windows</b> from the tray icon.</li>
+  </ol>
+  <p class="note" style="text-align:left">Coming from Keyboard Launchpad? LaunchPad offers to bring your hotkeys in the first time it starts. Close Keyboard Launchpad so the keys are free.</p>
+
+  <footer>
+    Free and open source · <a href="https://github.com/CC666Debug/launchpad">Source on GitHub</a> · <a href="https://github.com/CC666Debug/launchpad/releases/latest">All downloads</a>
+  </footer>
+</div>
+</body>
+</html>

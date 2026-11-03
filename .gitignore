@@ -1,0 +1,11 @@
+# build output
+bin/
+obj/
+out/
+*.user
+.vs/
+# local-only things
+*.lnk
+selftest.txt
+hotkeys.json*
+*.lpbackup
