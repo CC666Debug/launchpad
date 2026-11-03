@@ -338,6 +338,11 @@ class SearchPage : UserControl
             if (_key.Vk == 0 || m == 0) { MessageBox.Show(this, "Pick a key and at least one of Win, Ctrl, Alt.", "LaunchPad"); return; }
             var clash = _store.Hotkeys.FirstOrDefault(h => h.Key == _key.Vk && h.Mods == m);
             if (clash != null) { MessageBox.Show(this, $"\"{clash.DisplayName}\" already uses those keys.", "LaunchPad"); return; }
+            var (level, why) = KeyNames.Warn(m, _key.Vk);
+            if (level == 2) { MessageBox.Show(this, why + " Pick other keys.", "LaunchPad"); return; }
+            bool mine = m == s.Mods && _key.Vk == s.Key;
+            if (!mine && KeyNames.HeldByOtherApp(Handle, m, _key.Vk)) { MessageBox.Show(this, $"Another program on this PC already uses {KeyNames.Combo(m, _key.Vk)}.", "LaunchPad"); return; }
+            if (level == 1 && MessageBox.Show(this, why + "\n\nUse it anyway?", "LaunchPad", MessageBoxButtons.YesNo, MessageBoxIcon.Warning, MessageBoxDefaultButton.Button2) != DialogResult.Yes) return;
             s.Mods = m; s.Key = _key.Vk; _changed(); ShowStatus();
         };
         tryIt.Click += (o, e) => QuickSearch.Show();

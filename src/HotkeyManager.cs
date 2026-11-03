@@ -27,7 +27,9 @@ sealed class HotkeyManager : NativeWindow, IDisposable
             if (Native.RegisterHotKey(Handle, id, h.Mods | Native.MOD_NOREPEAT, h.Key))
             {
                 _byId[id] = h; seen[(h.Mods, h.Key)] = h.DisplayName;
-                Status[h.Id] = h.Actions.Any(a => a.NeedsSetup) ? "Needs setup" : h.Actions.Any(Missing) ? "Can't find the file" : "";
+                var warn = KeyNames.Warn(h.Mods, h.Key);
+                Status[h.Id] = h.Actions.Any(a => a.NeedsSetup) ? "Needs setup" : h.Actions.Any(Missing) ? "Can't find the file"
+                    : warn.level == 2 ? "Heads-up: takes over Windows' shortcut" : "";
             }
             else Status[h.Id] = "In use by another app";
         }

@@ -102,10 +102,15 @@ class HotkeyEditor : ThemedDialog
     {
         _clash.Text = "";
         if (_key.Vk == 0) { _clash.ForeColor = Theme.Dim; _clash.Text = "Click the key box and press the keys you want."; return; }
+        var combo = KeyNames.Combo(Mods, _key.Vk);
         var other = _store.Hotkeys.FirstOrDefault(x => x.Id != _h.Id && x.Key == _key.Vk && x.Mods == Mods);
-        if (other != null) { _clash.ForeColor = Theme.Bad; _clash.Text = $"Already used by \"{other.DisplayName}\"."; }
-        else if (Mods == 0 || Mods == Native.MOD_SHIFT) { _clash.ForeColor = Theme.Bad; _clash.Text = "Tip: add Ctrl, Alt or Win, or that key stops typing normally."; }
-        else { _clash.ForeColor = Theme.Good; _clash.Text = KeyNames.Combo(Mods, _key.Vk) + " is free."; }
+        var (level, why) = KeyNames.Warn(Mods, _key.Vk);
+        if (other != null) { _clash.ForeColor = Theme.Bad; _clash.Text = $"Already used by your hotkey \"{other.DisplayName}\"."; }
+        else if (Mods == _store.Search.Mods && _key.Vk == _store.Search.Key) { _clash.ForeColor = Theme.Bad; _clash.Text = $"{combo} opens Quick Search."; }
+        else if (level == 2) { _clash.ForeColor = Theme.Bad; _clash.Text = why + " Pick other keys."; }
+        else if (KeyNames.HeldByOtherApp(Handle, Mods, _key.Vk)) { _clash.ForeColor = Theme.Bad; _clash.Text = $"Another program on this PC already uses {combo}."; }
+        else if (level == 1) { _clash.ForeColor = Theme.Warn; _clash.Text = why; }
+        else { _clash.ForeColor = Theme.Good; _clash.Text = combo + " is free."; }
     }
 
     void FillActs(int select = -1)

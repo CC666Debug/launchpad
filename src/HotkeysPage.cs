@@ -196,7 +196,8 @@ class HotkeysPage : UserControl
             it.SubItems.Add(h.Combo == "" ? "—" : h.Combo);
             it.SubItems.Add(does);
             var stItem = it.SubItems.Add(st == "" ? "On" : st);
-            stItem.ForeColor = st == "" ? Theme.Good : (st is "Off" or "No key" or "Paused") ? Theme.Dim : Theme.Bad;
+            stItem.ForeColor = st == "" ? Theme.Good : (st is "Off" or "No key" or "Paused") ? Theme.Dim : st.StartsWith("Heads-up") ? Theme.Warn : Theme.Bad;
+            if (st.StartsWith("Heads-up")) it.ToolTipText = KeyNames.Warn(h.Mods, h.Key).text + (string.IsNullOrEmpty(h.Description) ? "" : "\n" + h.Description);
             foreach (ListViewItem.ListViewSubItem si in it.SubItems) si.BackColor = Theme.Box;
             it.SubItems[0].ForeColor = it.SubItems[1].ForeColor = it.SubItems[2].ForeColor = Theme.Fore;
             if (!groups.TryGetValue(h.Category ?? "General", out var g)) { g = _list.Groups.Add(h.Category, h.Category); groups[h.Category] = g; }

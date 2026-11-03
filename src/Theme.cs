@@ -43,6 +43,7 @@ static class Theme
     public static Color Border => C(P.BorderC);
     public static Color Accent => AccentHex != "" ? C(AccentHex) : C(P.AccentC);
     public static Color Bad => Dark ? Color.FromArgb(255, 110, 110) : Color.FromArgb(190, 20, 30);
+    public static Color Warn => Dark ? Color.FromArgb(255, 190, 90) : Color.FromArgb(170, 100, 0);
     public static Color Good => Dark ? Color.FromArgb(110, 220, 140) : Color.FromArgb(20, 130, 60);
 
     static bool WindowsDark()

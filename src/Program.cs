@@ -100,6 +100,11 @@ static class Program
         foreach (var w in Workspaces.OpenWindows()) sb.AppendLine($"window | {Path.GetFileName(w.Exe),-28} | {w.State,-9} | {w.Rect.Left},{w.Rect.Top} {w.Rect.Right - w.Rect.Left}x{w.Rect.Bottom - w.Rect.Top}");
         foreach (var h in store.Hotkeys)
         {
+            var wn = KeyNames.Warn(h.Mods, h.Key);
+            if (wn.level > 0) sb.AppendLine($"warn{wn.level} | {h.DisplayName} | {wn.text}");
+        }
+        foreach (var h in store.Hotkeys)
+        {
             mgr.Status.TryGetValue(h.Id, out var st);
             var acts = string.Join(" ; ", h.Actions.Select(a => a.Kind == ActionKind.PasteText ? "Paste text (hidden)" : a.Summary()));
             sb.AppendLine($"{h.Category,-8} | {h.DisplayName,-22} | {h.Combo,-22} | {(string.IsNullOrEmpty(st) ? "On" : st),-22} | {acts}");
