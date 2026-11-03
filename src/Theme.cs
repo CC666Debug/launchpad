@@ -172,6 +172,59 @@ static class Theme
         lv.HandleCreated += (s, e) => Native.SetWindowTheme(lv.Handle, Dark ? "DarkMode_ItemsView" : "ItemsView", null);
     }
 
+    /// <summary>Right-click menus that follow the theme (colors are read live, so switching light/dark just works).</summary>
+    public static void Menu(ToolStrip m)
+    {
+        m.Renderer = new MenuRenderer();
+        m.WhenOpening(() => { m.BackColor = Back; m.ForeColor = Fore; foreach (ToolStripItem i in m.Items) Recolor(i); });
+    }
+
+    static void WhenOpening(this ToolStrip m, Action a)
+    {
+        if (m is ToolStripDropDown dd) dd.Opening += (s, e) => a();
+        a();
+    }
+
+    static void Recolor(ToolStripItem i)
+    {
+        i.ForeColor = Fore; i.BackColor = Back;
+        if (i is ToolStripDropDownItem d) { d.DropDown.BackColor = Back; d.DropDown.Renderer = m_renderer; foreach (ToolStripItem k in d.DropDownItems) Recolor(k); }
+    }
+    static readonly MenuRenderer m_renderer = new();
+
+    class MenuColors : ProfessionalColorTable
+    {
+        public override Color ToolStripDropDownBackground => Back;
+        public override Color ImageMarginGradientBegin => Back;
+        public override Color ImageMarginGradientMiddle => Back;
+        public override Color ImageMarginGradientEnd => Back;
+        public override Color MenuBorder => Border;
+        public override Color MenuItemBorder => Accent;
+        public override Color MenuItemSelected => Mix(Accent, Back, 0.35);
+        public override Color MenuItemSelectedGradientBegin => Mix(Accent, Back, 0.35);
+        public override Color MenuItemSelectedGradientEnd => Mix(Accent, Back, 0.35);
+        public override Color MenuItemPressedGradientBegin => Mix(Accent, Back, 0.45);
+        public override Color MenuItemPressedGradientEnd => Mix(Accent, Back, 0.45);
+        public override Color SeparatorDark => Border;
+        public override Color SeparatorLight => Border;
+        public override Color CheckBackground => Mix(Accent, Back, 0.30);
+        public override Color CheckSelectedBackground => Mix(Accent, Back, 0.50);
+        public override Color CheckPressedBackground => Mix(Accent, Back, 0.50);
+    }
+
+    class MenuRenderer : ToolStripProfessionalRenderer
+    {
+        public MenuRenderer() : base(new MenuColors()) { RoundedEdges = false; }
+        protected override void OnRenderItemText(ToolStripItemTextRenderEventArgs e) { e.TextColor = e.Item.Enabled ? Fore : Dim; base.OnRenderItemText(e); }
+        protected override void OnRenderArrow(ToolStripArrowRenderEventArgs e) { e.ArrowColor = Fore; base.OnRenderArrow(e); }
+        protected override void OnRenderItemCheck(ToolStripItemImageRenderEventArgs e)
+        {
+            var r = new Rectangle(e.ImageRectangle.X - 2, e.ImageRectangle.Y - 2, e.ImageRectangle.Width + 4, e.ImageRectangle.Height + 4);
+            using (var b = new SolidBrush(Mix(Accent, Back, 0.35))) e.Graphics.FillRectangle(b, r);
+            TextRenderer.DrawText(e.Graphics, "✓", e.Item.Font, r, Fore, TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
+        }
+    }
+
     /// <summary>Blend a over b (amount 0..1 of a).</summary>
     public static Color Mix(Color a, Color b, double amount) => Color.FromArgb(
         (int)(a.R * amount + b.R * (1 - amount)), (int)(a.G * amount + b.G * (1 - amount)), (int)(a.B * amount + b.B * (1 - amount)));

@@ -91,6 +91,7 @@ class MainForm : Form
         menu.Items.Add(new ToolStripSeparator());
         menu.Items.Add("Exit", null, (s, e) => { _quitting = true; Close(); });
         _tray.ContextMenuStrip = menu;
+        Theme.Menu(menu);
         _tray.MouseClick += (s, e) => { if (e.Button == MouseButtons.Left) ShowMe(); };
         _miPause.Click += (s, e) => { _store.Paused = !_store.Paused; Changed(); _hotkeys.Refill(); };
         _miSnip.Click += (s, e) => { _store.SnippetsOn = !_store.SnippetsOn; Changed(); };

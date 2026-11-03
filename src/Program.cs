@@ -93,6 +93,16 @@ static class Program
                 using var bmp = new Bitmap(form.Width, form.Height);
                 form.DrawToBitmap(bmp, new Rectangle(0, 0, form.Width, form.Height));
                 bmp.Save(Path.Combine(Paths.Root, "build", "qs.png"));
+                // a right-click menu like the Hotkeys one, to check its colors
+                var m = new ContextMenuStrip();
+                foreach (var t in new[] { "Edit", "Run it now", "Turn on / off", "Copy", "Delete" }) m.Items.Add(t);
+                m.Items.Add(new ToolStripSeparator()); m.Items.Add(new ToolStripMenuItem("Snippets on") { Checked = true });
+                Theme.Menu(m);
+                m.Show(new Point(200, 200)); m.Items[1].Select(); Application.DoEvents(); Thread.Sleep(300); Application.DoEvents();
+                using var mb = new Bitmap(m.Width, m.Height);
+                using (var g = Graphics.FromImage(mb)) g.CopyFromScreen(m.Bounds.Location, Point.Empty, m.Size);
+                mb.Save(Path.Combine(Paths.Root, "build", "menu.png"));
+                m.Close();
             }
             form.Close();
         }

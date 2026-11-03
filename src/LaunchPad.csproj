@@ -10,7 +10,7 @@
     <RootNamespace>LaunchPad</RootNamespace>
     <ApplicationIcon>..\LaunchPad.ico</ApplicationIcon>
     <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
-    <Version>2.2.1</Version>
+    <Version>2.2.2</Version>
     <Product>LaunchPad</Product>
     <AssemblyTitle>LaunchPad</AssemblyTitle>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>

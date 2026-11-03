@@ -73,6 +73,7 @@ class HotkeysPage : UserControl
         menu.Items.Add(new ToolStripSeparator());
         menu.Items.Add("Sort this category A–Z", null, (s, e) => SortCategory());
         _list.ContextMenuStrip = menu;
+        Theme.Menu(menu);
 
         add.Click += (s, e) => AddNew();
         edit.Click += (s, e) => EditSelected();
