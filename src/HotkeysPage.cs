@@ -42,13 +42,17 @@ class HotkeysPage : UserControl
         _list.ItemDrag += (s, e) => _list.DoDragDrop(new DragIds(_list.SelectedItems.Cast<ListViewItem>().Select(i => (string)i.Tag).ToList()), DragDropEffects.Move);
         _list.DragOver += (s, e) =>
         {
-            e.Effect = e.Data.GetDataPresent(typeof(DragIds)) ? DragDropEffects.Move : DragDropEffects.None;
+            e.Effect = e.Data.GetDataPresent(typeof(DragIds)) ? DragDropEffects.Move
+                     : e.Data.GetDataPresent(DataFormats.FileDrop) || e.Data.GetDataPresent(DataFormats.Text) ? DragDropEffects.Copy : DragDropEffects.None;
             var p = _list.PointToClient(new Point(e.X, e.Y));
             var it = _list.GetItemAt(p.X, p.Y);
             foreach (ListViewItem i in _list.Items) i.Focused = i == it;
         };
         _list.DragDrop += (s, e) =>
         {
+            // a file, shortcut, folder or web link dropped in: make a hotkey that opens it (like Keyboard Launchpad did)
+            if (e.Data.GetDataPresent(DataFormats.FileDrop)) { var f = ((string[])e.Data.GetData(DataFormats.FileDrop))[0]; AddWith(new HotAction { Kind = ActionKind.Open, Target = f }, Path.GetFileNameWithoutExtension(f.TrimEnd('\\'))); return; }
+            if (e.Data.GetDataPresent(DataFormats.Text)) { var t = ((string)e.Data.GetData(DataFormats.Text)).Trim(); if (Icons.IsUrl(t)) AddWith(new HotAction { Kind = ActionKind.Open, Target = t }, new Uri(t).Host); return; }
             if (e.Data.GetData(typeof(DragIds)) is not DragIds d) return;
             var p = _list.PointToClient(new Point(e.X, e.Y));
             DropOn(d.Ids, _list.GetItemAt(p.X, p.Y), p);
@@ -205,6 +209,14 @@ class HotkeysPage : UserControl
         _pause.Text = _store.Paused ? "Resume all" : "Pause all";
         _summary.Text = $"{_store.Hotkeys.Count} hotkeys · {working} working" + (problems > 0 ? $" · {problems} need attention" : "") + (_store.Paused ? " · ALL PAUSED" : "")
                         + (shown != _store.Hotkeys.Count ? $" · showing {shown}" : "");
+    }
+
+    /// <summary>New hotkey that already knows what it does; you just pick the keys.</summary>
+    public void AddWith(HotAction a, string name)
+    {
+        var h = new Hotkey { Name = name ?? "", Category = _cat.SelectedIndex > 0 ? (string)_cat.SelectedItem : "General" };
+        h.Actions.Add(a);
+        if (Edit(h)) { _store.Hotkeys.Add(h); _changed(); Refill(); }
     }
 
     void AddNew()

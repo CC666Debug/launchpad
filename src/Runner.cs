@@ -7,6 +7,7 @@ namespace LaunchPad;
 static class Runner
 {
     public static Form Owner;   // main window, used for monitor-off / screensaver messages and dialogs
+    public static HotkeyStore Store;
 
     public static async Task Run(Hotkey hk)
     {
@@ -27,6 +28,10 @@ static class Runner
             case ActionKind.Media: Media(a.Media); break;
             case ActionKind.MouseClick: await Click(a); break;
             case ActionKind.Wait: await Task.Delay(Math.Clamp(a.Ms, 0, 60000)); break;
+            case ActionKind.Workspace:
+                var ws = Store?.Workspaces.FirstOrDefault(w => w.Id == a.WorkspaceId);
+                if (ws != null) await Workspaces.Open(ws);
+                break;
         }
     }
 
@@ -146,6 +151,14 @@ static class Runner
             case SysCmd.EmptyRecycleBin: if (Confirm("Empty the Recycle Bin")) Native.SHEmptyRecycleBin(IntPtr.Zero, null, 0x1 | 0x4); break;
             case SysCmd.TaskManager: Process.Start(new ProcessStartInfo("taskmgr.exe") { UseShellExecute = true }); break;
             case SysCmd.ToggleHiddenFiles: ToggleHidden(); break;
+            case SysCmd.FindFiles: Process.Start(new ProcessStartInfo("explorer.exe", "search-ms:") { UseShellExecute = true }); break;
+            case SysCmd.NewFolder:   // Explorer's own "new folder" keys, sent to the folder window in front
+                Native.SetForegroundWindow(fg);
+                Native.SendKeys(new[] { Native.Key(0x11, false), Native.Key(0x10, false), Native.Key(0x4E, false), Native.Key(0x4E, true), Native.Key(0x10, true), Native.Key(0x11, true) });
+                break;
+            case SysCmd.EjectDrive: Native.mciSendString("set cdaudio door open wait", null, 0, IntPtr.Zero); break;
+            case SysCmd.CloseDrive: Native.mciSendString("set cdaudio door closed wait", null, 0, IntPtr.Zero); break;
+            case SysCmd.QuickSearch: QuickSearch.Show(); break;
             case SysCmd.Unknown: Tray.Tip("LaunchPad", "This hotkey came from Keyboard Launchpad and still needs setting up.", true); break;
         }
     }

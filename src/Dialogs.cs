@@ -189,6 +189,8 @@ class ActionEditor : ThemedDialog
     // mouse
     readonly NumericUpDown _x = new() { Minimum = -20000, Maximum = 20000, Width = 90 }, _y = new() { Minimum = -20000, Maximum = 20000, Width = 90 };
     readonly ComboBox _btn = new() { DropDownStyle = ComboBoxStyle.DropDownList, Width = 120 };
+    // workspace
+    readonly ComboBox _ws = new() { DropDownStyle = ComboBoxStyle.DropDownList, Width = 300 };
     // wait
     readonly NumericUpDown _ms = new() { Minimum = 0, Maximum = 60000, Increment = 100, Width = 110 };
 
@@ -196,7 +198,7 @@ class ActionEditor : ThemedDialog
     {
         (ActionKind.Open, "Open a program, file, folder or website"), (ActionKind.PasteText, "Paste saved text"),
         (ActionKind.System, "Windows command"), (ActionKind.Media, "Music / volume"),
-        (ActionKind.MouseClick, "Mouse click"), (ActionKind.Wait, "Wait a moment"),
+        (ActionKind.MouseClick, "Mouse click"), (ActionKind.Wait, "Wait a moment"), (ActionKind.Workspace, "Open a workspace"),
     };
 
     public ActionEditor(HotAction a) : base("What should it do?", 620, 380)
@@ -214,6 +216,8 @@ class ActionEditor : ThemedDialog
         _text.Text = a.Text; _pasteNow.Checked = a.PasteNow;
         _sys.SelectedIndex = a.System == SysCmd.Unknown ? -1 : (int)a.System; _media.SelectedIndex = (int)a.Media;
         _x.Value = a.X; _y.Value = a.Y; _btn.SelectedItem = a.Button ?? "Left"; _ms.Value = Math.Clamp(a.Ms, 0, 60000);
+        foreach (var w in Runner.Store?.Workspaces ?? new()) _ws.Items.Add(w.Name);
+        _ws.SelectedIndex = Runner.Store?.Workspaces.FindIndex(w => w.Id == a.WorkspaceId) ?? -1;
         _target.DragEnter += (s, e) => { if (e.Data.GetDataPresent(DataFormats.FileDrop)) e.Effect = DragDropEffects.Copy; };
         _target.DragDrop += (s, e) => _target.Text = ((string[])e.Data.GetData(DataFormats.FileDrop))[0];
 
@@ -285,6 +289,11 @@ class ActionEditor : ThemedDialog
                 t.Controls.Add(L("Button"), 0, 1); t.Controls.Add(_btn, 1, 1);
                 break;
             }
+            case ActionKind.Workspace:
+                t.Controls.Add(L("Workspace"), 0, 0); t.Controls.Add(_ws, 1, 0);
+                if (_ws.Items.Count == 0)
+                    t.Controls.Add(new Label { Text = "No workspaces yet. Make one in the Workspaces tab first.", AutoSize = true, Tag = "dim", Margin = new Padding(3, 10, 3, 3) }, 1, 1);
+                break;
             case ActionKind.Wait:
                 var w = new FlowLayoutPanel { AutoSize = true, WrapContents = false };
                 w.Controls.AddRange(new Control[] { _ms, new Label { Text = "milliseconds (1000 = 1 second)", AutoSize = true, Margin = new Padding(6, 8, 3, 3) } });
@@ -300,6 +309,8 @@ class ActionEditor : ThemedDialog
         var kind = Kinds[_kind.SelectedIndex].k;
         if (kind == ActionKind.Open && string.IsNullOrWhiteSpace(_target.Text)) { MessageBox.Show(this, "Pick what to open.", "LaunchPad"); return false; }
         if (kind == ActionKind.System && _sys.SelectedIndex < 0) { MessageBox.Show(this, "Pick a command.", "LaunchPad"); return false; }
+        if (kind == ActionKind.Workspace && _ws.SelectedIndex < 0) { MessageBox.Show(this, "Pick a workspace.", "LaunchPad"); return false; }
+        if (kind == ActionKind.Workspace) _a.WorkspaceId = Runner.Store.Workspaces[_ws.SelectedIndex].Id;
         _a.Kind = kind;
         _a.Target = _target.Text.Trim(); _a.Arguments = _args.Text.Trim(); _a.StartIn = _startIn.Text.Trim(); _a.BringToFront = _front.Checked;
         _a.Text = _text.Text; _a.PasteNow = _pasteNow.Checked;

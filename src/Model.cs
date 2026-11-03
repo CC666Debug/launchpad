@@ -3,13 +3,14 @@ using System.Text.Json.Serialization;
 
 namespace LaunchPad;
 
-public enum ActionKind { Open, PasteText, System, Media, MouseClick, Wait }
+public enum ActionKind { Open, PasteText, System, Media, MouseClick, Wait, Workspace }
 
 public enum SysCmd
 {
     LockPC, Sleep, Hibernate, ShutDown, Restart, SignOut,
     ShowDesktop, CloseWindow, MinimizeWindow, MaximizeWindow, AlwaysOnTop,
-    MonitorOff, ScreenSaver, EmptyRecycleBin, TaskManager, RunBox, ToggleHiddenFiles, Unknown
+    MonitorOff, ScreenSaver, EmptyRecycleBin, TaskManager, RunBox, ToggleHiddenFiles,
+    FindFiles, NewFolder, EjectDrive, CloseDrive, QuickSearch, Unknown
 }
 
 public enum MediaCmd { PlayPause, Next, Previous, Stop, VolumeUp, VolumeDown, Mute }
@@ -35,6 +36,8 @@ public class HotAction
     public string Button { get; set; } = "Left";
     // Wait
     public int Ms { get; set; } = 500;
+    // Workspace
+    public string WorkspaceId { get; set; } = "";
 
     public HotAction Clone() => JsonSerializer.Deserialize<HotAction>(JsonSerializer.Serialize(this));
 
@@ -50,6 +53,7 @@ public class HotAction
         ActionKind.Media => "Music: " + Words(Media.ToString()),
         ActionKind.MouseClick => $"{Button} click at {X}, {Y}",
         ActionKind.Wait => $"Wait {Ms} ms",
+        ActionKind.Workspace => "Open workspace " + (Runner.Store?.Workspaces.FirstOrDefault(w => w.Id == WorkspaceId)?.Name ?? "(deleted)"),
         _ => Kind.ToString()
     };
 
@@ -69,7 +73,9 @@ public class HotAction
     }
 
     public static string Words(string s) => global::System.Text.RegularExpressions.Regex.Replace(s, "(?<=[a-z])(?=[A-Z])", " ")
-        .Replace("Run Box", "Run box").Replace("Toggle Hidden Files", "Show / hide hidden files");
+        .Replace("Run Box", "Run box").Replace("Toggle Hidden Files", "Show / hide hidden files")
+        .Replace("Find Files", "Find files (search window)").Replace("New Folder", "New folder (in the open folder window)")
+        .Replace("Eject Drive", "Open the CD/DVD drive").Replace("Close Drive", "Close the CD/DVD drive").Replace("Quick Search", "Quick Search box");
 }
 
 public class Hotkey
@@ -95,6 +101,10 @@ public class HotkeyStore
     public List<string> Categories { get; set; } = new();   // keeps empty categories around
     public bool Paused { get; set; }
     public bool ImportedKlp { get; set; }
+    public List<Workspace> Workspaces { get; set; } = new();
+    public List<Snippet> Snippets { get; set; } = new();
+    public bool SnippetsOn { get; set; } = true;
+    public SearchSettings Search { get; set; } = new();
 
     static readonly JsonSerializerOptions Opts = new() { WriteIndented = true, Converters = { new JsonStringEnumConverter() } };
 
@@ -142,4 +152,52 @@ public class HotkeyStore
         Categories = keep.Select(c => string.Equals(c, from, StringComparison.OrdinalIgnoreCase) ? to : c)
                          .Distinct(StringComparer.OrdinalIgnoreCase).ToList();
     }
+}
+
+/// <summary>One window in a workspace: what it is, how to open it, where it goes.</summary>
+public class WinItem
+{
+    public string Name { get; set; } = "";          // window title when saved
+    public string Exe { get; set; } = "";           // program that owns the window (used to find it)
+    public string TitleContains { get; set; } = ""; // optional: only windows whose title has this
+    public string Launch { get; set; } = "";        // what to start if it isn't open
+    public string Args { get; set; } = "";
+    public bool OpenIfClosed { get; set; } = true;
+    public int X { get; set; }
+    public int Y { get; set; }
+    public int W { get; set; }
+    public int H { get; set; }
+    public string State { get; set; } = "Normal";   // Normal, Maximized, Minimized
+}
+
+public class Workspace
+{
+    public string Id { get; set; } = Guid.NewGuid().ToString("N");
+    public string Name { get; set; } = "";
+    public List<WinItem> Items { get; set; } = new();
+}
+
+public class Snippet
+{
+    public string Id { get; set; } = Guid.NewGuid().ToString("N");
+    public string Abbrev { get; set; } = "";
+    public string Name { get; set; } = "";
+    public string Text { get; set; } = "";
+    public bool Enabled { get; set; } = true;
+}
+
+public class SearchSettings
+{
+    public bool Enabled { get; set; } = true;
+    public uint Mods { get; set; } = Native.MOD_WIN | Native.MOD_ALT;   // Win + Alt + Space (Ctrl+Alt+Space is often taken)
+    public uint Key { get; set; } = 0x20;   // Space
+    public bool Apps { get; set; } = true;
+    public bool Desktop { get; set; } = true;
+    public bool Hotkeys { get; set; } = true;
+    public bool Launchers { get; set; } = true;
+    public bool Workspaces { get; set; } = true;
+    public bool Snippets { get; set; } = true;
+    public bool Web { get; set; } = true;
+    public string WebUrl { get; set; } = "https://www.google.com/search?q=";
+    public Dictionary<string, int> Uses { get; set; } = new();   // what you pick most comes first
 }

@@ -70,6 +70,52 @@ static class Native
     [DllImport("user32.dll")] public static extern bool SetCursorPos(int x, int y);
     public const uint KEYEVENTF_KEYUP = 2;
 
+    // keyboard hook (snippets)
+    public delegate IntPtr LowLevelProc(int nCode, IntPtr wParam, IntPtr lParam);
+    [DllImport("user32.dll", SetLastError = true)] public static extern IntPtr SetWindowsHookEx(int id, LowLevelProc fn, IntPtr mod, uint thread);
+    [DllImport("user32.dll")] public static extern bool UnhookWindowsHookEx(IntPtr h);
+    [DllImport("user32.dll")] public static extern IntPtr CallNextHookEx(IntPtr h, int n, IntPtr w, IntPtr l);
+    [DllImport("kernel32.dll", CharSet = CharSet.Unicode)] public static extern IntPtr GetModuleHandle(string name);
+    [StructLayout(LayoutKind.Sequential)]
+    public struct KBDLLHOOKSTRUCT { public uint vkCode, scanCode, flags, time; public UIntPtr dwExtraInfo; }
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+    public static extern int ToUnicodeEx(uint vk, uint scan, byte[] state, StringBuilder buf, int cch, uint flags, IntPtr hkl);
+    [DllImport("user32.dll")] public static extern IntPtr GetKeyboardLayout(uint thread);
+
+    [StructLayout(LayoutKind.Sequential)] public struct KEYBDINPUT { public ushort wVk, wScan; public uint dwFlags, time; public UIntPtr dwExtraInfo; }
+    [StructLayout(LayoutKind.Sequential)] public struct MOUSEINPUT { public int dx, dy; public uint mouseData, dwFlags, time; public UIntPtr dwExtraInfo; }
+    [StructLayout(LayoutKind.Explicit)] public struct InputUnion { [FieldOffset(0)] public MOUSEINPUT mi; [FieldOffset(0)] public KEYBDINPUT ki; }
+    [StructLayout(LayoutKind.Sequential)] public struct INPUT { public uint type; public InputUnion U; }
+    [DllImport("user32.dll", SetLastError = true)] public static extern uint SendInput(uint n, INPUT[] inputs, int size);
+    public static readonly UIntPtr OurMark = new(0x4C50);   // "LP": lets the snippet hook skip keys LaunchPad itself sends
+
+    public static void SendKeys(IEnumerable<INPUT> list)
+    {
+        var arr = list.ToArray();
+        if (arr.Length > 0) SendInput((uint)arr.Length, arr, Marshal.SizeOf<INPUT>());
+    }
+    public static INPUT Key(ushort vk, bool up) => new() { type = 1, U = new InputUnion { ki = new KEYBDINPUT { wVk = vk, dwFlags = up ? 2u : 0u, dwExtraInfo = OurMark } } };
+    public static INPUT Uni(char c, bool up) => new() { type = 1, U = new InputUnion { ki = new KEYBDINPUT { wScan = c, dwFlags = 4u | (up ? 2u : 0u), dwExtraInfo = OurMark } } };
+
+    // windows (workspaces)
+    [StructLayout(LayoutKind.Sequential)] public struct RECT { public int Left, Top, Right, Bottom; }
+    [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr h, out RECT r);
+    [StructLayout(LayoutKind.Sequential)]
+    public struct WINDOWPLACEMENT { public int length, flags, showCmd; public Point ptMin, ptMax; public RECT rcNormal; }
+    [DllImport("user32.dll")] public static extern bool GetWindowPlacement(IntPtr h, ref WINDOWPLACEMENT p);
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)] public static extern int GetWindowText(IntPtr h, StringBuilder s, int n);
+    [DllImport("dwmapi.dll")] public static extern int DwmGetWindowAttribute(IntPtr h, int attr, out int val, int size);
+    [DllImport("winmm.dll", CharSet = CharSet.Unicode)] public static extern int mciSendString(string cmd, StringBuilder ret, int n, IntPtr cb);
+
+    public static string Title(IntPtr h)
+    {
+        int n = GetWindowTextLength(h);
+        if (n <= 0) return "";
+        var sb = new StringBuilder(n + 1);
+        GetWindowText(h, sb, sb.Capacity);
+        return sb.ToString();
+    }
+
     public static void Tap(byte vk)
     {
         keybd_event(vk, 0, 0, UIntPtr.Zero);

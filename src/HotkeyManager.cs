@@ -6,6 +6,9 @@ sealed class HotkeyManager : NativeWindow, IDisposable
     readonly Dictionary<int, Hotkey> _byId = new();
     public readonly Dictionary<string, string> Status = new();   // hotkey Id -> problem text, empty = working
     int _next = 1;
+    const int SearchId = 0xBFFF;
+    public string SearchStatus = "";   // empty = Quick Search keys are working
+    bool _searchOn;
 
     public HotkeyManager() { CreateHandle(new CreateParams()); }
 
@@ -28,6 +31,16 @@ sealed class HotkeyManager : NativeWindow, IDisposable
             }
             else Status[h.Id] = "In use by another app";
         }
+        // Quick Search's own keys
+        if (_searchOn) { Native.UnregisterHotKey(Handle, SearchId); _searchOn = false; }
+        var q = store.Search;
+        SearchStatus = "";
+        if (q.Enabled && q.Key != 0)
+        {
+            if (seen.TryGetValue((q.Mods, q.Key), out var o)) SearchStatus = "same keys as " + o;
+            else if (Native.RegisterHotKey(Handle, SearchId, q.Mods | Native.MOD_NOREPEAT, q.Key)) _searchOn = true;
+            else SearchStatus = "in use by another app";
+        }
     }
 
     static bool Missing(HotAction a)
@@ -42,12 +55,14 @@ sealed class HotkeyManager : NativeWindow, IDisposable
     {
         foreach (var id in _byId.Keys) Native.UnregisterHotKey(Handle, id);
         _byId.Clear();
+        if (_searchOn) { Native.UnregisterHotKey(Handle, SearchId); _searchOn = false; }
     }
 
-    public bool AnyBlocked => Status.Values.Any(v => v == "In use by another app");
+    public bool AnyBlocked => Status.Values.Any(v => v == "In use by another app") || SearchStatus == "in use by another app";
 
     protected override void WndProc(ref Message m)
     {
+        if (m.Msg == Native.WM_HOTKEY && (int)m.WParam == SearchId) { QuickSearch.Show(); return; }
         if (m.Msg == Native.WM_HOTKEY && _byId.TryGetValue((int)m.WParam, out var hk))
         {
             _ = Runner.Run(hk);
@@ -58,6 +73,7 @@ sealed class HotkeyManager : NativeWindow, IDisposable
 
     public void Dispose()
     {
+        if (_searchOn) Native.UnregisterHotKey(Handle, SearchId);
         foreach (var id in _byId.Keys) Native.UnregisterHotKey(Handle, id);
         _byId.Clear();
         DestroyHandle();
