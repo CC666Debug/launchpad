@@ -25,6 +25,9 @@ class MainForm : Form
     {
         Text = "LaunchPad"; Icon = Icons.AppIcon(); Font = new Font("Segoe UI", 10);
         ClientSize = new Size(1040, 620); MinimumSize = new Size(800, 440); StartPosition = FormStartPosition.CenterScreen;
+        RestoreWindow();
+        ResizeEnd += (s, e) => SaveWindow();          // after you finish moving or resizing it
+        Resize += (s, e) => { if (WindowState != FormWindowState.Minimized && IsHandleCreated && Visible) SaveWindow(); }; // maximize / restore
         Runner.Owner = this; Runner.Store = _store;
         QuickSearch.Store = _store; QuickSearch.Save = () => { try { _store.Save(); } catch { } };
 
@@ -115,6 +118,33 @@ class MainForm : Form
 
     bool _dragged;
     ThemeDialog _themeDlg;
+    bool _maxOnShow;
+
+    /// <summary>Remember where the window is and how big (x, y, width, height, maximized).</summary>
+    void SaveWindow()
+    {
+        if (WindowState == FormWindowState.Minimized) return;
+        var r = WindowState == FormWindowState.Normal ? Bounds : RestoreBounds;
+        try { Directory.CreateDirectory(Paths.Root); File.WriteAllText(Paths.WindowFile, $"{r.X},{r.Y},{r.Width},{r.Height},{(WindowState == FormWindowState.Maximized ? 1 : 0)}"); } catch { }
+    }
+
+    /// <summary>Open where it was last time, as long as that spot is still on a screen.</summary>
+    void RestoreWindow()
+    {
+        try
+        {
+            var p = File.ReadAllText(Paths.WindowFile).Trim().Split(',').Select(int.Parse).ToArray();
+            var r = new Rectangle(p[0], p[1], Math.Max(p[2], MinimumSize.Width), Math.Max(p[3], MinimumSize.Height));
+            // at least a good chunk of the title bar must be on some screen, or it'd open lost off-screen
+            var grab = new Rectangle(r.X + 40, r.Y, Math.Max(40, r.Width - 80), 30);
+            if (!Screen.AllScreens.Any(s => s.WorkingArea.IntersectsWith(grab))) return;
+            StartPosition = FormStartPosition.Manual;
+            Bounds = r;
+            _maxOnShow = p.Length > 4 && p[4] == 1;
+            if (_maxOnShow) Shown += (s, e) => WindowState = FormWindowState.Maximized;
+        }
+        catch { }
+    }
 
     public void OpenThemes()
     {
@@ -196,19 +226,21 @@ class MainForm : Form
     {
         ShowInTaskbar = true;
         Show();
-        if (WindowState == FormWindowState.Minimized) WindowState = FormWindowState.Normal;
+        if (WindowState == FormWindowState.Minimized) WindowState = _maxOnShow ? FormWindowState.Maximized : FormWindowState.Normal;
         Activate();
     }
 
     protected override void OnFormClosing(FormClosingEventArgs e)
     {
         // closing the window keeps hotkeys running in the tray
-        if (!_quitting && e.CloseReason == CloseReason.UserClosing)
+        if (!_quitting && e.CloseReason is CloseReason.UserClosing or CloseReason.None)
         {
+            SaveWindow();
             e.Cancel = true; Hide();
             if (!_toldTray) { Tray.Tip("LaunchPad is still running", "Your hotkeys keep working. Right-click the tray icon to exit.", false); _toldTray = true; }
             return;
         }
+        if (Visible) SaveWindow();
         _tray.Visible = false; _tray.Dispose();
         _snip?.Dispose();
         _mgr.Dispose();
