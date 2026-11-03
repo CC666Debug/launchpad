@@ -82,6 +82,9 @@ static class Program
             QuickSearch.Store = store; Runner.Store = store;
             var all = QuickSearch.Everything();
             sb.AppendLine($"quick search finds {all.Count} things: " + string.Join(", ", all.GroupBy(f => f.Sub?.Split(' ')[0]).Select(g => $"{g.Key} {g.Count()}")));
+            var ef = EverythingSearch.Instance.Find("LaunchPad.ico", 3);
+            while (!ef.IsCompleted) { Application.DoEvents(); Thread.Sleep(10); }
+            sb.AppendLine("everything: " + (EverythingSearch.Running ? "running" : "not running") + " -> " + string.Join(" | ", ef.Result.Select(r => r.path)));
             foreach (var q in new[] { "gma", "obs", "calc", "github.com" })
                 sb.AppendLine($"  '{q}' -> " + string.Join(" | ", QuickSearch.Find(all, q).Take(4).Select(f => $"{f.Title} [{f.Sub}]")));
             var form = new SearchForm(); form.Popup();

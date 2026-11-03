@@ -198,6 +198,8 @@ public class SearchSettings
     public bool Workspaces { get; set; } = true;
     public bool Snippets { get; set; } = true;
     public bool Web { get; set; } = true;
+    public bool Files { get; set; } = true;   // files and folders from the Everything app
+    public int FileCount { get; set; } = 8;
     public string WebUrl { get; set; } = "https://www.google.com/search?q=";
     public Dictionary<string, int> Uses { get; set; } = new();   // what you pick most comes first
 }

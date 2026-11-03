@@ -10,6 +10,7 @@ class Found
     public string IconSrc;    // path for the icon, or "@kind"
     public Func<Task> Run;
     public int Score;
+    public string Path;       // for files: Ctrl+Enter opens the folder it's in
 }
 
 /// <summary>The pop-up search box. One hotkey anywhere, type, Enter.</summary>
@@ -67,6 +68,8 @@ static class QuickSearch
         try { return Directory.EnumerateFiles(dir, pattern, new EnumerationOptions { RecurseSubdirectories = true, IgnoreInaccessible = true }).ToList(); }
         catch { return Array.Empty<string>(); }
     }
+
+    public static void Open(string target) => Start(target);
 
     static void Start(string target)
     {
@@ -192,7 +195,7 @@ class SearchForm : Form
         FormBorderStyle = FormBorderStyle.None; ShowInTaskbar = false; TopMost = true; KeyPreview = true;
         StartPosition = FormStartPosition.Manual; Size = new Size(680, 470); Text = "LaunchPad Quick Search";
         Font = new Font("Segoe UI", 10); Padding = new Padding(1);
-        _box.PlaceholderText = "Search apps, hotkeys, launchers, workspaces, snippets…";
+        _box.PlaceholderText = "Search apps, files, hotkeys, launchers, workspaces, snippets…";
         _boxPanel.Controls.Add(_box);
         var line = new Panel { Dock = DockStyle.Top, Height = 2, Tag = "keepcolor" };
         Controls.Add(_list); Controls.Add(line); Controls.Add(_boxPanel);
@@ -230,18 +233,52 @@ class SearchForm : Form
         _box.Focus();
     }
 
-    void Refill()
+    int _ask;   // which typing round the file results belong to
+
+    async void Refill()
     {
-        _shown = QuickSearch.Find(_all, _box.Text);
+        var q = _box.Text;
+        _shown = QuickSearch.Find(_all, q);
+        Show(_shown);
+        // then files from Everything (after a short pause so it doesn't ask on every letter)
+        var st = QuickSearch.Store.Search;
+        if (!st.Files || q.Trim().Length < 2) return;
+        int me = ++_ask;
+        await Task.Delay(120);
+        if (me != _ask || !Visible) return;
+        var files = await EverythingSearch.Instance.Find(q.Trim(), Math.Clamp(st.FileCount, 1, 30));
+        if (me != _ask || !Visible || files.Count == 0) return;
+        var have = new HashSet<string>(_shown.Where(f => f.Sub == "Desktop" || f.Sub == "File or folder").Select(f => f.Key), StringComparer.OrdinalIgnoreCase);
+        var add = files.Select(x => new Found
+        {
+            Key = "", Title = System.IO.Path.GetFileName(x.path.TrimEnd('\\')) is { Length: > 0 } n ? n : x.path,
+            Sub = (x.folder ? "Folder · " : "File · ") + (Path.GetDirectoryName(x.path) ?? x.path),
+            IconSrc = x.path, Path = x.path,
+            Run = () => { QuickSearch.Open(x.path); return Task.CompletedTask; }
+        }).ToList();
+        int webAt = _shown.FindIndex(f => f.Sub == "Web search");
+        var keepSel = _list.SelectedIndex;
+        if (webAt < 0) _shown.AddRange(add); else _shown.InsertRange(webAt, add);
+        Show(_shown, keepSel);
+    }
+
+    void Show(List<Found> items, int sel = 0)
+    {
         _list.BeginUpdate(); _list.Items.Clear();
-        foreach (var f in _shown) _list.Items.Add(f.Title);
-        if (_list.Items.Count > 0) _list.SelectedIndex = 0;
+        foreach (var f in items) _list.Items.Add(f.Title);
+        if (_list.Items.Count > 0) _list.SelectedIndex = Math.Clamp(sel, 0, _list.Items.Count - 1);
         _list.EndUpdate();
     }
 
     void OnKeys(object s, KeyEventArgs e)
     {
         if (e.KeyCode == Keys.Escape) { Hide(); e.Handled = e.SuppressKeyPress = true; }
+        else if (e.KeyCode == Keys.Enter && e.Control && _list.SelectedIndex >= 0 && _list.SelectedIndex < _shown.Count && _shown[_list.SelectedIndex].Path is { } path)
+        {   // Ctrl+Enter: show the file in its folder
+            Hide();
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("explorer.exe", $"/select,\"{path}\"") { UseShellExecute = true });
+            e.Handled = e.SuppressKeyPress = true;
+        }
         else if (e.KeyCode == Keys.Enter) { Go(); e.Handled = e.SuppressKeyPress = true; }
         else if (e.KeyCode is Keys.Down or Keys.Up && _list.Items.Count > 0)
         {
@@ -360,7 +397,9 @@ class SearchPage : UserControl
         Opt("Your launchers", () => s.Launchers, v => s.Launchers = v);
         Opt("Your workspaces", () => s.Workspaces, v => s.Workspaces = v);
         Opt("Your snippets (pastes them)", () => s.Snippets, v => s.Snippets = v);
+        Opt("Files and folders from Everything" + (EverythingSearch.Running ? "" : "  (Everything isn't running right now)"), () => s.Files, v => s.Files = v);
         Opt("Offer a web search", () => s.Web, v => s.Web = v);
+        body.Controls.Add(new Label { Text = "Tip: Enter opens it. Ctrl + Enter on a file opens the folder it's in.", AutoSize = true, Tag = "dim", Margin = new Padding(16, 8, 3, 3) });
         var clear = Theme.MakeButton("Forget what I picked most", 210); clear.Margin = new Padding(16, 12, 3, 3);
         clear.Click += (o, e) => { s.Uses.Clear(); _changed(); };
         body.Controls.Add(clear);
