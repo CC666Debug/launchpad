@@ -36,6 +36,8 @@ kbd{background:var(--panel);border:1px solid var(--border);border-bottom-width:2
 footer{border-top:1px solid var(--border);margin-top:48px;padding:22px 0 40px;color:var(--muted);font-size:14px;text-align:center}
 a{color:var(--accent)}
 </style>
+<!-- Visit counter (GoatCounter: free, no cookies). Tap the footer 5 times for a "Don't count me" switch. -->
+<script data-goatcounter="https://cc666debug.goatcounter.com/count" async src="https://gc.zgo.at/count.js"></script>
 </head>
 <body>
 <div class="wrap">
@@ -85,5 +87,14 @@ a{color:var(--accent)}
     Free and open source · <a href="https://github.com/CC666Debug/launchpad">Source on GitHub</a> · <a href="https://github.com/CC666Debug/launchpad/releases/latest">All downloads</a>
   </footer>
 </div>
+<script>
+// Hidden switch: 5 taps on the footer turns counting off/on for this browser (GoatCounter's own skipgc flag).
+(function(){ var f=document.querySelector('footer'), n=0, t=0;
+  f.addEventListener('click', function(){ if (Date.now()-t>1500) n=0; t=Date.now(); if (++n<5) return; n=0;
+    try { if (localStorage.getItem('skipgc')==='t') localStorage.removeItem('skipgc'); else localStorage.setItem('skipgc','t');
+      var m=f.querySelector('.gc')||f.appendChild(Object.assign(document.createElement('div'),{className:'gc'}));
+      m.textContent = localStorage.getItem('skipgc')==='t' ? 'Not counting this browser' : 'Counting this browser again'; } catch(e){} });
+})();
+</script>
 </body>
 </html>
