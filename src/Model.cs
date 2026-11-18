@@ -162,6 +162,7 @@ public class WinItem
     public string TitleContains { get; set; } = ""; // optional: only windows whose title has this
     public string Launch { get; set; } = "";        // what to start if it isn't open
     public string Args { get; set; } = "";
+    public string AppId { get; set; } = "";         // browser web app (PWA) ID, e.g. Brave._crx_...; matched instead of the title
     public bool OpenIfClosed { get; set; } = true;
     public int X { get; set; }
     public int Y { get; set; }

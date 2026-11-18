@@ -6,7 +6,7 @@ namespace LaunchPad;
 /// <summary>Finds open windows, and puts a workspace's windows back where they were saved.</summary>
 static class Workspaces
 {
-    public record Win(IntPtr Handle, string Title, string Exe, Native.RECT Rect, string State);
+    public record Win(IntPtr Handle, string Title, string Exe, Native.RECT Rect, string State, string AppId = "");
 
     static readonly HashSet<string> Skip = new(StringComparer.OrdinalIgnoreCase)
     { "explorer.exe:Program Manager", "TextInputHost.exe", "ShellExperienceHost.exe", "SearchHost.exe", "StartMenuExperienceHost.exe", "LockApp.exe" };
@@ -30,7 +30,7 @@ static class Workspaces
             if (Skip.Contains(name) || Skip.Contains(name + ":" + title)) return true;
             var state = Native.IsIconic(h) ? "Minimized" : Native.IsZoomed(h) ? "Maximized" : "Normal";
             var r = state == "Normal" && Native.GetWindowRect(h, out var cur) ? cur : RestoredRect(h);
-            list.Add(new Win(h, title, exe, r, state));
+            list.Add(new Win(h, title, exe, r, state, AppIds.Reopenable(h, exe)));
             return true;
         }, IntPtr.Zero);
         return list;
@@ -91,6 +91,16 @@ static class Workspaces
         {
             bool shared = all.Count(x => string.Equals(x.Exe, w.Exe, StringComparison.OrdinalIgnoreCase)) > 1;
             bool store = w.Exe.EndsWith("ApplicationFrameHost.exe", StringComparison.OrdinalIgnoreCase);
+            if (!string.IsNullOrEmpty(w.AppId))
+            {   // web app or Store app: the program's command line doesn't say which app, so open it by its app ID
+                items.Add(new WinItem
+                {
+                    Name = w.Title, Exe = w.Exe, AppId = w.AppId, TitleContains = "",
+                    Launch = "shell:AppsFolder\\" + w.AppId, Args = "", OpenIfClosed = true,
+                    X = w.Rect.Left, Y = w.Rect.Top, W = w.Rect.Right - w.Rect.Left, H = w.Rect.Bottom - w.Rect.Top, State = w.State
+                });
+                continue;
+            }
             var it = new WinItem
             {
                 Name = w.Title, Exe = w.Exe,
@@ -117,9 +127,12 @@ static class Workspaces
         return t;
     }
 
-    static bool Matches(Win w, WinItem it) =>
-        string.Equals(w.Exe, it.Exe, StringComparison.OrdinalIgnoreCase) &&
-        (string.IsNullOrEmpty(it.TitleContains) || w.Title.Contains(it.TitleContains, StringComparison.OrdinalIgnoreCase));
+    public static bool Matches(Win w, WinItem it)
+    {
+        if (!string.Equals(w.Exe, it.Exe, StringComparison.OrdinalIgnoreCase)) return false;
+        if (!string.IsNullOrEmpty(it.AppId)) return string.Equals(w.AppId, it.AppId, StringComparison.OrdinalIgnoreCase);   // web app: its own ID, any title
+        return string.IsNullOrEmpty(it.TitleContains) || w.Title.Contains(it.TitleContains, StringComparison.OrdinalIgnoreCase);
+    }
 
     public static void Place(IntPtr h, WinItem it)
     {
@@ -145,7 +158,9 @@ static class Workspaces
                 {
                     Native.AllowSetForegroundWindow(-1);
                     var target = Environment.ExpandEnvironmentVariables(it.Launch);
-                    var psi = new ProcessStartInfo(target) { UseShellExecute = true, Arguments = it.Args ?? "" };
+                    var psi = target.StartsWith("shell:", StringComparison.OrdinalIgnoreCase)
+                        ? new ProcessStartInfo("explorer.exe", target) { UseShellExecute = true }   // web apps (shell:AppsFolder\Brave._crx_...)
+                        : new ProcessStartInfo(target) { UseShellExecute = true, Arguments = it.Args ?? "" };
                     if (File.Exists(target)) psi.WorkingDirectory = Path.GetDirectoryName(target);
                     Process.Start(psi);
                 }
@@ -261,7 +276,7 @@ class WorkspacesPage : UserControl
                 var key = it.Exe;
                 if (!_img.Images.ContainsKey(key)) { var b = Icons.Shell32(it.Exe); if (b != null) _img.Images.Add(key, b); }
                 var li = new ListViewItem(string.IsNullOrEmpty(it.TitleContains) ? it.Name : it.TitleContains, key);
-                li.SubItems.Add(Path.GetFileNameWithoutExtension(it.Exe));
+                li.SubItems.Add(Path.GetFileNameWithoutExtension(it.Exe) + (string.IsNullOrEmpty(it.AppId) ? "" : it.AppId.Contains('!') ? " (Store app)" : " (web app)"));
                 li.SubItems.Add(it.State == "Maximized" ? "Maximized" : it.State == "Minimized" ? "Minimized" : $"{it.X}, {it.Y}");
                 li.SubItems.Add($"{it.W} × {it.H}");
                 li.SubItems.Add(it.OpenIfClosed && !string.IsNullOrEmpty(it.Launch) ? "Yes" : "No (only moves it)");
@@ -291,10 +306,13 @@ class WorkspacesPage : UserControl
         var now = Workspaces.OpenWindows(); var used = new HashSet<IntPtr>(); int n = 0;
         foreach (var it in w.Items)
         {
-            var win = now.FirstOrDefault(x => !used.Contains(x.Handle) && string.Equals(x.Exe, it.Exe, StringComparison.OrdinalIgnoreCase)
-                && (string.IsNullOrEmpty(it.TitleContains) || x.Title.Contains(it.TitleContains, StringComparison.OrdinalIgnoreCase)));
+            var win = now.FirstOrDefault(x => !used.Contains(x.Handle) && Workspaces.Matches(x, it));
             if (win == null) continue;
             used.Add(win.Handle); n++;
+            if (string.IsNullOrEmpty(it.AppId) && !string.IsNullOrEmpty(win.AppId))
+            {   // saved before LaunchPad knew web apps: remember which one it is, so Open starts the app and not just the browser
+                it.AppId = win.AppId; it.TitleContains = ""; it.Launch = "shell:AppsFolder\\" + win.AppId; it.Args = "";
+            }
             it.X = win.Rect.Left; it.Y = win.Rect.Top; it.W = win.Rect.Right - win.Rect.Left; it.H = win.Rect.Bottom - win.Rect.Top; it.State = win.State;
         }
         _changed(); FillItems();
@@ -387,8 +405,7 @@ class WinItemDialog : ThemedDialog
         _launch.DragDrop += (s, e) => { _launch.Text = ((string[])e.Data.GetData(DataFormats.FileDrop))[0]; _args.Text = ""; };
         grab.Click += (s, e) =>
         {
-            var w = Workspaces.OpenWindows().FirstOrDefault(x => string.Equals(x.Exe, it.Exe, StringComparison.OrdinalIgnoreCase)
-                && (_title.Text == "" || x.Title.Contains(_title.Text, StringComparison.OrdinalIgnoreCase)));
+            var w = Workspaces.OpenWindows().FirstOrDefault(x => Workspaces.Matches(x, new WinItem { Exe = it.Exe, AppId = it.AppId, TitleContains = _title.Text }));
             if (w == null) { MessageBox.Show(this, "That window isn't open right now.", "LaunchPad"); return; }
             _x.Value = w.Rect.Left; _y.Value = w.Rect.Top; _w.Value = w.Rect.Right - w.Rect.Left; _h.Value = w.Rect.Bottom - w.Rect.Top; _state.SelectedItem = w.State;
         };

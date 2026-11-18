@@ -133,6 +133,10 @@ static class Theme
     public static void HookListView(ListView lv)
     {
         lv.OwnerDraw = true;
+        // no flicker when the list is filled or scrolled (DoubleBuffered is protected, so set it the long way)
+        typeof(Control).GetProperty("DoubleBuffered", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)?.SetValue(lv, true);
+        lv.HandleCreated += (s, e) => HeaderFill.Attach(lv);
+        if (lv.IsHandleCreated) HeaderFill.Attach(lv);
         lv.DrawColumnHeader += (s, e) =>
         {
             using var bg = new SolidBrush(Btn);
@@ -170,6 +174,42 @@ static class Theme
         lv.GotFocus += (s, e) => lv.Invalidate();
         lv.LostFocus += (s, e) => lv.Invalidate();
         lv.HandleCreated += (s, e) => Native.SetWindowTheme(lv.Handle, Dark ? "DarkMode_ItemsView" : "ItemsView", null);
+    }
+
+    /// <summary>Paints the empty strip of a ListView header to the right of the last column (Windows leaves it white).</summary>
+    sealed class HeaderFill : NativeWindow
+    {
+        readonly ListView _lv;
+        HeaderFill(ListView lv, IntPtr header) { _lv = lv; AssignHandle(header); }
+
+        public static void Attach(ListView lv)
+        {
+            var h = Native.SendMessage(lv.Handle, 0x101F, IntPtr.Zero, IntPtr.Zero);   // LVM_GETHEADER
+            if (h == IntPtr.Zero) return;
+            var f = new HeaderFill(lv, h);
+            lv.HandleDestroyed += (s, e) => f.ReleaseHandle();
+        }
+
+        protected override void WndProc(ref Message m)
+        {
+            if (m.Msg == 0x0014 && !_lv.IsDisposed)   // WM_ERASEBKGND: theme color, never white (it flashed while dragging/scrolling)
+            {
+                using var eg = Graphics.FromHdc(m.WParam);
+                using var eb = new SolidBrush(Btn);
+                eg.FillRectangle(eb, eg.VisibleClipBounds);
+                m.Result = (IntPtr)1;
+                return;
+            }
+            base.WndProc(ref m);
+            if (m.Msg != 0x000F || _lv.IsDisposed) return;   // after WM_PAINT
+            int used = 0; foreach (ColumnHeader c in _lv.Columns) used += c.Width;
+            using var g = Graphics.FromHwnd(Handle);
+            var all = Rectangle.Round(g.VisibleClipBounds);
+            int x = used - Native.GetScrollPos(_lv.Handle, 0);   // 0 = SB_HORZ
+            if (x >= all.Right) return;
+            using var bg = new SolidBrush(Btn);
+            g.FillRectangle(bg, x, 0, all.Right - x, all.Height);
+        }
     }
 
     /// <summary>Right-click menus that follow the theme (colors are read live, so switching light/dark just works).</summary>

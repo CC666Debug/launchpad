@@ -217,7 +217,7 @@ class SearchForm : Form
         void Recolor() { Theme.Apply(this); BackColor = Theme.Accent; _boxPanel.BackColor = _box.BackColor = _list.BackColor = Theme.Box; line.BackColor = Theme.Accent; _box.ForeColor = Theme.Fore; _list.Invalidate(); }
     }
 
-    protected override CreateParams CreateParams { get { var cp = base.CreateParams; cp.ExStyle |= 0x80; return cp; } } // no Alt+Tab entry
+    protected override CreateParams CreateParams { get { var cp = base.CreateParams; cp.ExStyle |= 0x80 | 0x02000000; return cp; } } // no Alt+Tab entry; WS_EX_COMPOSITED = no flicker while typing
 
     bool _wasActive;
 
@@ -264,6 +264,13 @@ class SearchForm : Form
 
     void Show(List<Found> items, int sel = 0)
     {
+        // same rows as now: just keep them (refilling makes the list blink on every letter)
+        if (_list.Items.Count == items.Count && items.Select(f => f.Title).SequenceEqual(_list.Items.Cast<string>()))
+        {
+            if (_list.Items.Count > 0) _list.SelectedIndex = Math.Clamp(sel, 0, _list.Items.Count - 1);
+            _list.Invalidate();
+            return;
+        }
         _list.BeginUpdate(); _list.Items.Clear();
         foreach (var f in items) _list.Items.Add(f.Title);
         if (_list.Items.Count > 0) _list.SelectedIndex = Math.Clamp(sel, 0, _list.Items.Count - 1);

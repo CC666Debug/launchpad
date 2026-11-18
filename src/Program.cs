@@ -18,7 +18,7 @@ static class Program
         if (!first)
         {
             // a restart may still be letting go: give it a moment before handing over
-            if (!mutex.WaitOne(3000))
+            if (!args.Contains("--restarted") || !mutex.WaitOne(3000))
             {
                 // already running: pass the workspace to it instead of opening the window
                 if (wsName != null) { Directory.CreateDirectory(Paths.Root); File.WriteAllText(cmdFile, wsName); }
@@ -32,6 +32,7 @@ static class Program
         if (args.Contains("--selftest")) { SelfTest(args.Contains("--merge"), args); return; }
         bool hidden = args.Contains("--tray");
         var form = new MainForm(hidden);
+        Runner.ShowSelf = () => form.BeginInvoke(form.ShowMe);   // a hotkey that opens LaunchPad itself: no second copy needed
         if (args.Contains("--themes")) form.Shown += (s, e) => form.OpenThemes();   // for testing
         if (args.Contains("--search")) form.Shown += (s, e) => QuickSearch.Show();  // for testing
         // LaunchPad.exe --workspace "Name" opens that workspace (handy in shortcuts)
@@ -61,7 +62,7 @@ static class Program
 
         Application.Run(form);
         mutex.ReleaseMutex(); mutex.Dispose();
-        if (RestartRequested) Process.Start(Environment.ProcessPath);
+        if (RestartRequested) Process.Start(Environment.ProcessPath, "--restarted");
     }
 
     /// <summary>Registers everything and writes a report (no window). --merge also merges Keyboard Launchpad's newest hotkeys.</summary>
@@ -111,7 +112,7 @@ static class Program
             form.Close();
         }
         catch (Exception ex) { sb.AppendLine("quick search ERROR: " + ex); }
-        foreach (var w in Workspaces.OpenWindows()) sb.AppendLine($"window | {Path.GetFileName(w.Exe),-28} | {w.State,-9} | {w.Rect.Left},{w.Rect.Top} {w.Rect.Right - w.Rect.Left}x{w.Rect.Bottom - w.Rect.Top}");
+        foreach (var w in Workspaces.OpenWindows()) sb.AppendLine($"window | {Path.GetFileName(w.Exe),-28} | {w.State,-9} | {w.Rect.Left},{w.Rect.Top} {w.Rect.Right - w.Rect.Left}x{w.Rect.Bottom - w.Rect.Top}{(w.AppId != "" ? " | app id " + w.AppId : "")}");
         foreach (var h in store.Hotkeys)
         {
             var wn = KeyNames.Warn(h.Mods, h.Key);

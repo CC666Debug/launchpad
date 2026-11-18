@@ -36,10 +36,14 @@ static class Runner
     }
 
     // ---------- open ----------
+    public static Action ShowSelf;
+
     static void Open(HotAction a)
     {
         var target = Environment.ExpandEnvironmentVariables(a.Target ?? "").Trim().Trim('"');
         if (target == "") return;
+        if (ShowSelf != null && string.IsNullOrWhiteSpace(a.Arguments) && Environment.ProcessPath is { } me
+            && string.Equals(Path.GetFullPath(target), me, StringComparison.OrdinalIgnoreCase)) { ShowSelf(); return; }
         if (Path.IsPathRooted(target) && !File.Exists(target) && !Directory.Exists(target))
             throw new FileNotFoundException("Can't find " + target + ". Edit the hotkey and point it at the right place.");
         // with arguments (Chrome web apps, steam://...) the program being open doesn't mean *this* thing is open
